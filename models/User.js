@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
   // Which campaigns this viewer can see
   allowedCampaigns: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' }],
 
-  // If true, viewer sees ALL campaigns
+  // If true, viewer sees ALL campaigns from here
   viewAllCampaigns: { type: Boolean, default: false },
 
   // Which fields/columns are visible to this viewer
@@ -35,6 +35,7 @@ userSchema.pre('save', async function (next) {
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
+
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
