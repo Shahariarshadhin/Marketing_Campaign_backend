@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/Authcontroller');
-const { protect, adminOnly } = require('../middleware/authMiddleware.js');
+const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 // One-time admin setup (only works if no admin exists)
 router.post('/setup-admin', authController.setupAdmin);

@@ -32,7 +32,7 @@ const {
   protect,
   adminOnly,
   filterViewerCampaigns,
-} = require("../middleware/authMiddleware.js");
+} = require("../middleware/authMiddleware");
 
 // Debug: catch missing exports early with clear error messages
 const requiredController = [
