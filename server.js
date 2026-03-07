@@ -10,6 +10,7 @@ const customFieldRoutes = require('./routes/customFieldRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const campaignContentRoutes = require('./routes/campaignContentRoutes');
+const campaignMetricsRoutes = require('./routes/campaignMetricsRoutes');
 
 const app = express();
 
@@ -34,6 +35,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/custom-fields', customFieldRoutes);
 app.use('/api/campaign-content', campaignContentRoutes);
+app.use('/api/metrics',          campaignMetricsRoutes);
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
