@@ -11,6 +11,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const campaignContentRoutes = require('./routes/campaignContentRoutes');
 const campaignMetricsRoutes = require('./routes/campaignMetricsRoutes');
+const motherBrandRoutes     = require('./routes/motherBrandRoutes');
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use('/api/campaigns', campaignRoutes);
 app.use('/api/custom-fields', customFieldRoutes);
 app.use('/api/campaign-content', campaignContentRoutes);
 app.use('/api/metrics',          campaignMetricsRoutes);
+app.use('/api/mother-brands',    motherBrandRoutes);
 
 
 const PORT = process.env.PORT || 5000;

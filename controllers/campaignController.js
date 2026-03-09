@@ -1,11 +1,10 @@
-
 // const Campaign = require('../models/Campaign');
 
 // // Get all campaigns
 // exports.getAllCampaigns = async (req, res) => {
 //   try {
 //     const campaigns = await Campaign.find().sort({ createdAt: -1 });
-    
+
 //     res.status(200).json({
 //       success: true,
 //       count: campaigns.length,
@@ -24,7 +23,7 @@
 // exports.getCampaignById = async (req, res) => {
 //   try {
 //     const campaign = await Campaign.findById(req.params.id);
-    
+
 //     if (!campaign) {
 //       return res.status(404).json({
 //         success: false,
@@ -63,7 +62,7 @@
 //         error: error.message
 //       });
 //     }
-    
+
 //     res.status(500).json({
 //       success: false,
 //       message: 'Error creating campaign',
@@ -101,7 +100,7 @@
 //         error: error.message
 //       });
 //     }
-    
+
 //     res.status(500).json({
 //       success: false,
 //       message: 'Error updating campaign',
@@ -152,7 +151,7 @@
 //     delete campaignData.createdAt;
 //     delete campaignData.updatedAt;
 //     delete campaignData.__v;
-    
+
 //     campaignData.name = `${campaignData.name} (Copy)`;
 
 //     const duplicatedCampaign = await Campaign.create(campaignData);
@@ -200,112 +199,136 @@
 //   }
 // };
 
-const Campaign = require('../models/Campaign');
+const Campaign = require("../models/Campaign");
+const MotherBrand = require("../models/MotherBrand");
 
 // Get all campaigns (with viewer filtering)
 exports.getAllCampaigns = async (req, res) => {
   try {
-    let query = {};
+    const filter = {};
 
-    // If viewer, filter to only allowed campaigns
-    if (req.viewerFilter) {
-      if (!req.viewAllCampaigns) {
-        if (!req.allowedCampaigns || req.allowedCampaigns.length === 0) {
-          return res.status(200).json({ success: true, count: 0, data: [] });
-        }
-        query._id = { $in: req.allowedCampaigns };
-      }
-      // If viewAllCampaigns is true, no filter needed
-    }
+    // Viewer: only see allowed campaigns
+    if (req.viewerFilter) Object.assign(filter, req.viewerFilter);
 
-    const campaigns = await Campaign.find(query).sort({ createdAt: -1 });
+    // Optional brand filter
+    if (req.query.brandId) filter.motherBrand = req.query.brandId;
 
-    res.status(200).json({ success: true, count: campaigns.length, data: campaigns });
+    const campaigns = await Campaign.find(filter)
+      .populate("motherBrand", "name color logo")
+      .sort({ createdAt: -1 });
+
+    res
+      .status(200)
+      .json({ success: true, count: campaigns.length, data: campaigns });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching campaigns', error: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Get single campaign by ID (with viewer access check)
+// @GET /api/campaigns/:id
 exports.getCampaignById = async (req, res) => {
   try {
-    const campaign = await Campaign.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.viewerFilter?.motherBrand)
+      filter.motherBrand = req.viewerFilter.motherBrand;
 
-    if (!campaign) {
-      return res.status(404).json({ success: false, message: 'Campaign not found' });
-    }
-
-    // Check viewer access
-    if (req.viewerFilter && !req.viewAllCampaigns) {
-      const allowed = req.allowedCampaigns.map(id => id.toString());
-      if (!allowed.includes(campaign._id.toString())) {
-        return res.status(403).json({ success: false, message: 'Access denied to this campaign' });
-      }
-    }
+    const campaign = await Campaign.findOne(filter).populate(
+      "motherBrand",
+      "name color logo",
+    );
+    if (!campaign)
+      return res
+        .status(404)
+        .json({ success: false, message: "Campaign not found" });
 
     res.status(200).json({ success: true, data: campaign });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching campaign', error: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Create new campaign (admin only)
+// @POST /api/campaigns
 exports.createCampaign = async (req, res) => {
   try {
-    const campaign = await Campaign.create(req.body);
-    res.status(201).json({ success: true, message: 'Campaign created successfully', data: campaign });
+    const { motherBrand, ...rest } = req.body;
+    if (!motherBrand)
+      return res
+        .status(400)
+        .json({ success: false, message: "motherBrand is required" });
+
+    const brand = await MotherBrand.findById(motherBrand);
+    if (!brand)
+      return res
+        .status(404)
+        .json({ success: false, message: "Mother brand not found" });
+
+    const campaign = await Campaign.create({
+      motherBrand,
+      ...rest,
+      createdBy: req.user._id,
+    });
+    await campaign.populate("motherBrand", "name color logo");
+
+    res
+      .status(201)
+      .json({ success: true, message: "Campaign created", data: campaign });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ success: false, message: 'Validation error', error: error.message });
-    }
-    res.status(500).json({ success: false, message: 'Error creating campaign', error: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Update campaign (admin only)
+// @PUT /api/campaigns/:id
 exports.updateCampaign = async (req, res) => {
   try {
-    const campaign = await Campaign.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-
-    res.status(200).json({ success: true, message: 'Campaign updated successfully', data: campaign });
+    const campaign = await Campaign.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    }).populate("motherBrand", "name color logo");
+    if (!campaign)
+      return res
+        .status(404)
+        .json({ success: false, message: "Campaign not found" });
+    res
+      .status(200)
+      .json({ success: true, message: "Campaign updated", data: campaign });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ success: false, message: 'Validation error', error: error.message });
-    }
-    res.status(500).json({ success: false, message: 'Error updating campaign', error: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Delete campaign (admin only)
+// @DELETE /api/campaigns/:id
 exports.deleteCampaign = async (req, res) => {
   try {
     const campaign = await Campaign.findByIdAndDelete(req.params.id);
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-
-    res.status(200).json({ success: true, message: 'Campaign deleted successfully' });
+    if (!campaign)
+      return res
+        .status(404)
+        .json({ success: false, message: "Campaign not found" });
+    res.status(200).json({ success: true, message: "Campaign deleted" });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error deleting campaign', error: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Duplicate campaign (admin only)
+// @POST /api/campaigns/:id/duplicate
 exports.duplicateCampaign = async (req, res) => {
   try {
-    const originalCampaign = await Campaign.findById(req.params.id);
-    if (!originalCampaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
+    const original = await Campaign.findById(req.params.id);
+    if (!original)
+      return res
+        .status(404)
+        .json({ success: false, message: "Campaign not found" });
 
-    const campaignData = originalCampaign.toObject();
-    delete campaignData._id;
-    delete campaignData.createdAt;
-    delete campaignData.updatedAt;
-    delete campaignData.__v;
-    campaignData.name = `${campaignData.name} (Copy)`;
+    const copy = original.toObject();
+    delete copy._id;
+    delete copy.createdAt;
+    delete copy.updatedAt;
+    copy.name = `${copy.name} (Copy)`;
 
-    const duplicatedCampaign = await Campaign.create(campaignData);
-    res.status(201).json({ success: true, message: 'Campaign duplicated successfully', data: duplicatedCampaign });
+    const newCampaign = await Campaign.create(copy);
+    await newCampaign.populate("motherBrand", "name color logo");
+    res.status(201).json({ success: true, data: newCampaign });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error duplicating campaign', error: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -313,13 +336,17 @@ exports.duplicateCampaign = async (req, res) => {
 exports.toggleCampaignActive = async (req, res) => {
   try {
     const campaign = await Campaign.findById(req.params.id);
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-
+    if (!campaign)
+      return res
+        .status(404)
+        .json({ success: false, message: "Campaign not found" });
     campaign.active = !campaign.active;
+    campaign.status = campaign.active ? "active" : "paused";
+    campaign.delivery = campaign.active ? "Active" : "Paused";
     await campaign.save();
-
-    res.status(200).json({ success: true, message: 'Campaign active status toggled', data: campaign });
+    await campaign.populate("motherBrand", "name color logo");
+    res.status(200).json({ success: true, data: campaign });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error toggling campaign status', error: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
