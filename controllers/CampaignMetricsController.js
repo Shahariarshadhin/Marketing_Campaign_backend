@@ -1,4 +1,4 @@
-const CampaignMetrics = require('../models/Campaignmetrics');
+const CampaignMetrics = require('../models/CampaignMetrics');
 const Campaign        = require('../models/Campaign');
 
 // Helper: normalize date to midnight UTC
@@ -199,5 +199,128 @@ exports.deleteMetrics = async (req, res) => {
     res.status(200).json({ success: true, message: 'Record deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @POST /api/metrics/bulk-by-date  — fetch metrics for multiple campaigns on one date
+// Body: { campaignIds: [...], date: 'YYYY-MM-DD' }
+exports.getBulkByDate = async (req, res) => {
+  try {
+    const { campaignIds, date } = req.body;
+    if (!campaignIds || !date)
+      return res.status(400).json({ success: false, message: 'campaignIds and date are required' });
+
+    const normalizedDate = toDate(date);
+    const endOfDay = new Date(normalizedDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    const records = await CampaignMetrics.find({
+      campaign: { $in: campaignIds },
+      date: { $gte: normalizedDate, $lte: endOfDay }
+    }).lean();   // lean() returns plain objects — no Map issues
+
+    // Return as map: { campaignId: record }
+    const map = {};
+    records.forEach(r => {
+      // customFields comes out of lean() as plain object already
+      map[r.campaign.toString()] = r;
+    });
+
+    res.json({ success: true, data: map, date });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+// @GET /api/metrics/:campaignId/all  — all records for a campaign (for the entry panel history)
+exports.getAllRecords = async (req, res) => {
+  try {
+    const records = await CampaignMetrics.find({ campaign: req.params.campaignId })
+      .sort({ date: -1 });
+    res.json({ success: true, data: records });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+// @POST /api/metrics/bulk-by-range
+// Body: { campaignIds: [...], startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD' }
+// Returns aggregated (summed) metrics per campaign across the date range
+exports.getBulkByRange = async (req, res) => {
+  try {
+    const { campaignIds, startDate, endDate } = req.body;
+    if (!campaignIds || !startDate || !endDate)
+      return res.status(400).json({ success: false, message: 'campaignIds, startDate, endDate required' });
+
+    const start = toDate(startDate);
+    const end   = toDate(endDate);
+    end.setUTCHours(23, 59, 59, 999);
+
+    const records = await CampaignMetrics.find({
+      campaign: { $in: campaignIds },
+      date: { $gte: start, $lte: end }
+    });
+
+    // Helper: parse a metric string to number
+    const parseVal = (v) => {
+      if (v === undefined || v === null || v === '—' || v === '') return null;
+      const n = parseFloat(String(v).replace(/[^0-9.-]/g, ''));
+      return isNaN(n) ? null : n;
+    };
+
+    // Group by campaignId, then aggregate
+    const groups = {};
+    records.forEach(r => {
+      const cid = r.campaign.toString();
+      if (!groups[cid]) groups[cid] = [];
+      groups[cid].push(r);
+    });
+
+    const NUM_FIELDS    = ['results','amountSpent','impressions','reach','actions'];
+    const LATEST_FIELDS = ['budget','delivery','costPerResult']; // take latest value
+
+    const map = {};
+    Object.entries(groups).forEach(([cid, recs]) => {
+      const sorted = recs.sort((a, b) => new Date(a.date) - new Date(b.date));
+      const agg = { _aggregated: true, days: recs.length, campaignId: cid };
+
+      // Sum numeric fields
+      NUM_FIELDS.forEach(field => {
+        const nums = sorted.map(r => parseVal(r[field])).filter(n => n !== null);
+        agg[field] = nums.length > 0 ? String(nums.reduce((a, b) => a + b, 0).toFixed(2).replace(/\.00$/, '')) : '—';
+      });
+
+      // Latest value fields
+      LATEST_FIELDS.forEach(field => {
+        const last = sorted[sorted.length - 1];
+        agg[field] = last[field] || '—';
+      });
+
+      // Aggregate custom fields (sum numbers, latest string)
+      const cfAgg = {};
+      sorted.forEach(r => {
+        // Handle Mongoose Map, JS Map, or plain object
+        let cf = {};
+        if (r.customFields instanceof Map) cf = Object.fromEntries(r.customFields);
+        else if (r.customFields && typeof r.customFields.get === 'function') {
+          // Mongoose Map — iterate keys
+          r.customFields.forEach((v, k) => { cf[k] = v; });
+        } else if (r.customFields && typeof r.customFields === 'object') {
+          cf = r.customFields;
+        }
+        Object.entries(cf).forEach(([k, v]) => {
+          const n = parseVal(v);
+          if (n !== null) cfAgg[k] = (cfAgg[k] || 0) + n;
+          else cfAgg[k] = v; // keep latest string value
+        });
+      });
+      agg.customFields = cfAgg;
+
+      map[cid] = agg;
+    });
+
+    res.json({ success: true, data: map, startDate, endDate });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
   }
 };

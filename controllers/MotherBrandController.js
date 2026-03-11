@@ -156,15 +156,29 @@ exports.getBrandCampaigns = async (req, res) => {
     const { startDate, endDate } = req.query;
     const filter = { motherBrand: req.params.id };
 
-    const campaigns = await Campaign.find(filter).sort({ createdAt: -1 });
+    const campaigns = await Campaign.find(filter)
+      .populate('motherBrand', 'name color logo')
+      .sort({ createdAt: -1 })
+      .lean();   // plain objects — no Mongoose Map issues
 
-    // Apply date filter client-side style (on startDate/endDate fields)
-    let result = campaigns;
+    // Serialize customFields Map → plain object (lean keeps Map as object already,
+    // but guard in case it arrives as a Map)
+    const normalize = (c) => {
+      if (c.customFields && typeof c.customFields.get === 'function') {
+        const plain = {};
+        c.customFields.forEach((v, k) => { plain[k] = v; });
+        c.customFields = plain;
+      }
+      return c;
+    };
+
+    // Apply date filter
+    let result = campaigns.map(normalize);
     if (startDate || endDate) {
       const fs = startDate ? new Date(startDate) : null;
       const fe = endDate   ? new Date(endDate)   : null;
       if (fe) fe.setHours(23, 59, 59, 999);
-      result = campaigns.filter(c => {
+      result = result.filter(c => {
         const cs = c.startDate ? new Date(c.startDate) : null;
         const ce = c.endDate && c.endDate !== 'Ongoing' ? new Date(c.endDate) : null;
         if (!cs && !ce) return true;
