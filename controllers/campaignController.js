@@ -202,6 +202,18 @@
 const Campaign = require("../models/Campaign");
 const MotherBrand = require("../models/MotherBrand");
 
+const normalizeCampaign = (c) => {
+  if (!c) return c;
+  const obj = typeof c.toObject === "function" ? c.toObject() : c;
+  if (obj.customFields && typeof obj.customFields.get === "function") {
+    const plain = {};
+    obj.customFields.forEach((v, k) => {
+      plain[k] = v;
+    });
+    obj.customFields = plain;
+  }
+  return obj;
+};
 // Get all campaigns (with viewer filtering)
 exports.getAllCampaigns = async (req, res) => {
   try {
@@ -215,11 +227,16 @@ exports.getAllCampaigns = async (req, res) => {
 
     const campaigns = await Campaign.find(filter)
       .populate("motherBrand", "name color logo")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     res
       .status(200)
-      .json({ success: true, count: campaigns.length, data: campaigns });
+      .json({
+        success: true,
+        count: campaigns.length,
+        data: campaigns.map(normalizeCampaign),
+      });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -308,7 +325,6 @@ exports.deleteCampaign = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // @POST /api/campaigns/:id/duplicate
 exports.duplicateCampaign = async (req, res) => {
   try {

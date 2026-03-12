@@ -1,4 +1,4 @@
-const CampaignMetrics = require('../models/CampaignMetrics');
+const CampaignMetrics = require('../models/Campaignmetrics');
 const Campaign        = require('../models/Campaign');
 
 // Helper: normalize date to midnight UTC
