@@ -43,6 +43,35 @@ const insertionOrderSchema = new mongoose.Schema({
   notes:       { type: String, default: '' },
   active:      { type: Boolean, default: false },
   createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
+  // ── Inventory Source ──────────────────────────────────────────────────────
+  inventorySource: {
+    quality:             { type: String, default: 'Authorized Direct Sellers And Resellers' },
+    // exchanges: array of { name, group, selected }
+    exchanges:           [{ name: String, selected: { type: Boolean, default: true } }],
+    targetNewExchanges:  { type: Boolean, default: true },
+    deals:               { type: String, default: '0 deals and inventory packages selected' },
+    dealGroups:          { type: String, default: 'No inventory groups selected' },
+  },
+
+  // ── Targeting ─────────────────────────────────────────────────────────────
+  targeting: {
+    brandSafety: {
+      digitalContentLabels: [{ type: String }],   // e.g. ['DL-MA','Not yet labeled']
+      sensitiveCategories:  [{ type: String }],   // e.g. ['Sensitive social issues',...]
+    },
+    environment:   [{ type: String }],             // e.g. ['Web','App']
+    viewability: {
+      openMeasurement: { type: Boolean, default: true },
+      notes:           { type: String, default: '' },
+    },
+    geography:     [{ type: String }],
+    language:      [{ type: String }],
+    device:        [{ type: String }],
+    audience:      [{ type: String }],
+    keywords:      [{ type: String }],
+    additionalNotes: { type: String, default: '' },
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('InsertionOrder', insertionOrderSchema);

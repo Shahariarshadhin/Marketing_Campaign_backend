@@ -68,3 +68,24 @@ exports.toggleOrder = async (req, res) => {
     res.json({ success: true, data: order });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
+
+// @PATCH /api/campaigns/:campaignId/insertion-orders/:id/settings
+// Update inventorySource + targeting sections
+exports.updateSettings = async (req, res) => {
+  try {
+    const { inventorySource, targeting } = req.body;
+    const update = {};
+    if (inventorySource) update.inventorySource = inventorySource;
+    if (targeting)       update.targeting       = targeting;
+
+    const io = await InsertionOrder.findByIdAndUpdate(
+      req.params.id,
+      { $set: update },
+      { new: true, runValidators: false }
+    );
+    if (!io) return res.status(404).json({ success: false, message: 'IO not found' });
+    res.json({ success: true, data: io });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};

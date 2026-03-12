@@ -11,5 +11,6 @@ router.post('/',      adminOnly,   ctrl.createOrder);
 router.put('/:id',    adminOnly,   ctrl.updateOrder);
 router.delete('/:id', adminOnly,   ctrl.deleteOrder);
 router.patch('/:id/toggle', adminOnly, ctrl.toggleOrder);
+router.patch('/:id/settings', adminOnly, ctrl.updateSettings);
 
 module.exports = router;
