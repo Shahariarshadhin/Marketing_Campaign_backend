@@ -48,7 +48,7 @@ const insertionOrderSchema = new mongoose.Schema({
   inventorySource: {
     quality:             { type: String, default: 'Authorized Direct Sellers And Resellers' },
     // exchanges: array of { name, group, selected }
-    exchanges:           [{ name: String, selected: { type: Boolean, default: true } }],
+    exchanges:           [{ name: String, url: String, selected: { type: Boolean, default: true } }],
     targetNewExchanges:  { type: Boolean, default: true },
     deals:               { type: String, default: '0 deals and inventory packages selected' },
     dealGroups:          { type: String, default: 'No inventory groups selected' },
@@ -70,6 +70,12 @@ const insertionOrderSchema = new mongoose.Schema({
     device:        [{ type: String }],
     audience:      [{ type: String }],
     keywords:      [{ type: String }],
+    appsUrls: {
+      channels:    [{ name: String, url: String }],
+      collections: [{ name: String, url: String }],
+      urls:        [{ value: String }],
+      apps:        [{ name: String, publisher: String, platform: String, packageId: String, action: { type: String, default: 'include' } }],
+    },
     additionalNotes: { type: String, default: '' },
   },
 }, { timestamps: true });
