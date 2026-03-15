@@ -78,6 +78,25 @@ const insertionOrderSchema = new mongoose.Schema({
     },
     additionalNotes: { type: String, default: '' },
   },
+
+  // ── Creatives ─────────────────────────────────────────────────────────────
+  creatives: [{
+    name:           { type: String, required: true },
+    cm360Id:        { type: String, default: '' },
+    dv360Id:        { type: String, default: '' },
+    status:         { type: String, enum: ['active','inactive','draft'], default: 'active' },
+    type:           { type: String, default: 'Video' },
+    format:         { type: String, default: 'Video' },
+    dv360Status:    { type: String, default: 'Servable' },
+    exchangeStatus: { type: String, default: '' },
+    duration:       { type: String, default: '' },
+    source:         { type: String, default: 'Campaign Manager 360' },
+    tagWrapping:    { type: String, default: 'No' },
+    previewUrl:     { type: String, default: '' },
+    assigned:       { type: Boolean, default: false },
+    createdAt:      { type: Date, default: Date.now },
+  }],
+  cpmRate: { type: String, default: 'A$0.00 CPM' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('InsertionOrder', insertionOrderSchema);

@@ -89,3 +89,40 @@ exports.updateSettings = async (req, res) => {
     res.status(500).json({ success: false, message: e.message });
   }
 };
+
+// @POST /api/campaigns/:campaignId/insertion-orders/:id/creatives — create creative
+exports.createCreative = async (req, res) => {
+  try {
+    const io = await InsertionOrder.findById(req.params.id);
+    if (!io) return res.status(404).json({ success: false, message: 'IO not found' });
+    io.creatives.push(req.body);
+    await io.save();
+    res.json({ success: true, data: io });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+};
+
+// @PATCH /api/campaigns/:campaignId/insertion-orders/:id/creatives/assign
+// Body: { creativeIds: [...] }  — set assigned=true for listed IDs, false for all others
+exports.assignCreatives = async (req, res) => {
+  try {
+    const { creativeIds } = req.body;
+    const io = await InsertionOrder.findById(req.params.id);
+    if (!io) return res.status(404).json({ success: false, message: 'IO not found' });
+    io.creatives.forEach(c => {
+      c.assigned = creativeIds.includes(c._id.toString());
+    });
+    await io.save();
+    res.json({ success: true, data: io });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+};
+
+// @DELETE /api/campaigns/:campaignId/insertion-orders/:id/creatives/:creativeId
+exports.deleteCreative = async (req, res) => {
+  try {
+    const io = await InsertionOrder.findById(req.params.id);
+    if (!io) return res.status(404).json({ success: false, message: 'IO not found' });
+    io.creatives = io.creatives.filter(c => c._id.toString() !== req.params.creativeId);
+    await io.save();
+    res.json({ success: true, data: io });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+};
