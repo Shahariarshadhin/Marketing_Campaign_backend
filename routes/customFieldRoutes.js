@@ -1,21 +1,14 @@
-
 const express = require('express');
-const router = express.Router();
-const customFieldController = require('../controllers/customFieldController');
+const router  = express.Router();
+const ctrl    = require('../controllers/customFieldController');
+const { protect, adminOnly } = require('../middleware/authMiddleware');
 
-// GET all custom fields
-router.get('/', customFieldController.getAllCustomFields);
+router.use(protect);
 
-// GET single custom field by ID
-router.get('/:id', customFieldController.getCustomFieldById);
-
-// POST create new custom field
-router.post('/', customFieldController.createCustomField);
-
-// PUT update custom field
-router.put('/:id', customFieldController.updateCustomField);
-
-// DELETE custom field
-router.delete('/:id', customFieldController.deleteCustomField);
+router.get('/',     ctrl.getAllCustomFields);
+router.get('/:id',  ctrl.getCustomFieldById);
+router.post('/',    adminOnly, ctrl.createCustomField);
+router.put('/:id',  adminOnly, ctrl.updateCustomField);
+router.delete('/:id', adminOnly, ctrl.deleteCustomField);
 
 module.exports = router;

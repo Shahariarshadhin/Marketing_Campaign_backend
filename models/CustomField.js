@@ -12,8 +12,12 @@ const customFieldSchema = new mongoose.Schema({
   },
   type: { 
     type: String,
-    enum: ['text', 'number', 'email', 'date', 'textarea', 'select', 'checkbox'],
+    enum: ['text', 'number', 'email', 'date', 'textarea', 'select', 'checkbox', 'url', 'boolean'],
     default: 'text'
+  },
+  category: {
+    type: String,
+    default: ''   // e.g. 'Performance', 'Conversions', 'Viewability', etc.
   },
   required: { 
     type: Boolean, 
